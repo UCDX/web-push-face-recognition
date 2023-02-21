@@ -6,6 +6,9 @@ const low = require('lowdb');
 const FileSync = require('lowdb/adapters/FileSync');
 const adapter = new FileSync('.data/db.json');
 const db = low(adapter);
+const fileUpload = require('express-fileupload');
+const fs = require('fs');
+const path = require('path');
 const vapidDetails = {
   publicKey: process.env.VAPID_PUBLIC_KEY,
   privateKey: process.env.VAPID_PRIVATE_KEY,
@@ -16,12 +19,17 @@ db.defaults({
   subscriptions: []
 }).write();
 
-function sendNotifications(subscriptions) {
+/**
+ * @param {Object} notif Object with
+ * - title: String
+ * - body: String
+ */
+function sendNotifications(subscriptions, notif = {}) {
   // Create the notification content.
   const notification = JSON.stringify({
-    title: "Hello, Notifications!",
+    title: notif.title || "Hello, Notifications!" ,
     options: {
-      body: `ID: ${Math.floor(Math.random() * 100)}`
+      body: notif.body || `ID: ${Math.floor(Math.random() * 100)}`
     }
   });
   // Customize how the push service should attempt to deliver the push message.
@@ -49,6 +57,60 @@ function sendNotifications(subscriptions) {
 const app = express();
 app.use(bodyparser.json());
 app.use(express.static('public'));
+app.use(fileUpload({
+  useTempFiles : true,
+  tempFileDir : '/tmp/'
+}));
+
+// ------------------- Start of middlewares-------------------
+
+// Save temporary image in tmp folder with name "image" plus extension (png).
+saveTmpImageMidd = (request, response, next) => {
+  console.log('Saving photo in tmp folder...');
+  const img = request.body.photo;
+  const regex = /^data:.+\/(.+);base64,(.*)$/;
+
+  const matches = img.match(regex);
+  const ext = matches[1];
+  const data = matches[2];
+  const buffer = Buffer.from(data, 'base64'); 
+
+  tmp_dir = 'tmp'
+
+  // Check if tmp folder exists, if not, create it.
+  if (!fs.existsSync(tmp_dir)) {
+    fs.mkdirSync(tmp_dir);
+  }
+  const filename = 'image.' + ext
+  const filepath = path.join(tmp_dir, filename)
+  fs.writeFileSync(filepath, buffer); 
+
+  next()
+}
+
+faceRecognitionMidd = (request, response, next) => {
+  console.log('Face recognition...');
+  request.faceRecognition = {
+    faceIdentified: false,
+    person: 'John Doe'
+  }
+
+  next()
+}
+
+deleteTmpImagesMidd = (request, response, next) => {
+  console.log('Deleting tmp images...');
+  // Get all files in tmp directory
+  const files = fs.readdirSync('tmp')
+  // Delete all files in tmp directory.
+  files.forEach(file => {
+    fs.unlinkSync(path.join('tmp', file))
+  })
+
+  next()
+}
+
+// ------------------- End of middlewares-------------------
 
 app.post('/add-subscription', (request, response) => {
   console.log('/add-subscription');
@@ -94,8 +156,37 @@ app.post('/notify-all', (request, response) => {
   }
 });
 
+app.post(
+  '/person-picture', 
+  saveTmpImageMidd, 
+  faceRecognitionMidd, 
+  deleteTmpImagesMidd, 
+  (request, response) => {
+    console.log('/person-picture');
+    
+    if (request.faceRecognition.faceIdentified) {
+      const subscriptions = db.get('subscriptions').cloneDeep().value();
+      if (subscriptions.length > 0) {
+        const notif = {
+          title: 'Reconocimiento facial',
+          body: `Se ha detectado a ${request.faceRecognition.person}`
+        }
+        sendNotifications(subscriptions, notif);
+        return response.sendStatus(200);
+      } else {
+        return response.sendStatus(409);
+      }
+    }
+
+    response.sendStatus(403);
+})
+
 app.get('/', (request, response) => {
   response.sendFile(__dirname + '/views/index.html');
+});
+
+app.get('/face-recognition', (request, response) => {
+  response.sendFile(__dirname + '/views/face_recognition.html');
 });
 
 const listener = app.listen(process.env.PORT, () => {
