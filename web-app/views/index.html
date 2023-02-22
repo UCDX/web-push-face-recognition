@@ -7,12 +7,26 @@
   <title>Home</title>
   <link rel="stylesheet" type="text/css" href="utils.css" /> 
   <script src="utils.js"></script>
+  <style>
+    .custom-container {
+      width: 50%;
+      min-width: 600px;
+      margin: auto;
+    }
+  </style>
 </head>
 <body>
-  <div class="content-centered">
-    <h2>Menú</h2>
-    <button onclick="goToPath('/settings')">Configuración</button>
-    <button onclick="goToPath('/face-recognition')">Reconocimiento facial</button>
+  <div class="custom-container">
+    <h2 class="content-centered">Menú</h2>
+    <p><strong>Instrucciones:</strong></p>
+    <p>
+      Ingresa a la configuración y registra el service worker. Luego suscribete al servicio de notificaciones.
+      Posteriormente ve a la vista de reconocimiento facial y toma una foto para indentificarte.
+    </p>
+    <div class="content-centered">
+      <button onclick="goToPath('/settings')">Configuración</button>
+      <button onclick="goToPath('/face-recognition')">Reconocimiento facial</button>
+    </div>
   </div>
 </body>
 </html>
