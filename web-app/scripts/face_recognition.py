@@ -5,7 +5,6 @@ import os
 import pathlib
 import argparse
 import json
-import time
 
 def setup():
   arg_parser = argparse.ArgumentParser(
