@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Face recognition</title>
+    <link rel="stylesheet" type="text/css" href="utils.css" /> 
     <style>
       #video {
         border: 1px solid black;
@@ -62,6 +63,10 @@
 
     <div class="contentarea">
       <h1>Reconocimiento facial</h1>
+      <div class="content-centered">
+        <button onclick="goToPath('/')">Inicio</button>
+      </div>
+      <div id="message-display" class="message-display">s</div>
       <div class="camera">
         <video id="video">Video stream not available.</video>
         <button id="startbutton">Tomar foto</button>
@@ -69,6 +74,7 @@
       <canvas id="canvas"> </canvas>
     </div>
     
+    <script src="utils.js"></script>
     <script src="face_recognition.js"></script>
   </body>
 </html>

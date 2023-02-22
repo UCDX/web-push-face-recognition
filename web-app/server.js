@@ -9,6 +9,8 @@ const db = low(adapter);
 const fileUpload = require('express-fileupload');
 const fs = require('fs');
 const path = require('path');
+const { createHash } = require('crypto')
+const { execSync } = require('child_process')
 const vapidDetails = {
   publicKey: process.env.VAPID_PUBLIC_KEY,
   privateKey: process.env.VAPID_PRIVATE_KEY,
@@ -54,6 +56,11 @@ function sendNotifications(subscriptions, notif = {}) {
   });
 }
 
+function apiUtils (request, response, next) {
+  request._data = {}
+  next()
+}
+
 const app = express();
 app.use(bodyparser.json());
 app.use(express.static('public'));
@@ -61,6 +68,8 @@ app.use(fileUpload({
   useTempFiles : true,
   tempFileDir : '/tmp/'
 }));
+app.use(apiUtils)
+
 
 // ------------------- Start of middlewares-------------------
 
@@ -75,37 +84,50 @@ saveTmpImageMidd = (request, response, next) => {
   const data = matches[2];
   const buffer = Buffer.from(data, 'base64'); 
 
-  tmp_dir = 'tmp'
+  tmp_dir = path.join(__dirname, 'tmp')
 
   // Check if tmp folder exists, if not, create it.
   if (!fs.existsSync(tmp_dir)) {
     fs.mkdirSync(tmp_dir);
   }
-  const filename = 'image.' + ext
+  let hash = createHash('sha256')
+  hash.update(Math.random().toString())
+  let image_name = hash.digest('hex')
+  const filename = `${image_name}.${ext}`
   const filepath = path.join(tmp_dir, filename)
   fs.writeFileSync(filepath, buffer); 
+  request._data.image_path = filepath
 
   next()
 }
 
 faceRecognitionMidd = (request, response, next) => {
   console.log('Face recognition...');
-  request.faceRecognition = {
-    faceIdentified: false,
-    person: 'John Doe'
-  }
-
+  let command = [
+    'python', // runtime env
+    path.join(__dirname, 'scripts', 'face_recognition.py'), //script
+    request._data.image_path // args
+  ]
+  let stdout = execSync(command.join(' '), {encoding: 'utf8'})
+  let faceRecognition = JSON.parse(stdout)
+  // request.faceRecognition = {
+  //   faceIdentified: false,
+  //   person: 'John Doe'
+  // }
+  request.faceRecognition = faceRecognition
+  console.log(stdout)
   next()
 }
 
 deleteTmpImagesMidd = (request, response, next) => {
-  console.log('Deleting tmp images...');
+  console.log('Deleting tmp image...');
   // Get all files in tmp directory
-  const files = fs.readdirSync('tmp')
+  // const files = fs.readdirSync('tmp')
   // Delete all files in tmp directory.
-  files.forEach(file => {
-    fs.unlinkSync(path.join('tmp', file))
-  })
+  // files.forEach(file => {
+  //   fs.unlinkSync(path.join('tmp', file))
+  // })
+  fs.unlinkSync(request._data.image_path)
 
   next()
 }
@@ -172,22 +194,33 @@ app.post(
           body: `Se ha detectado a ${request.faceRecognition.person}`
         }
         sendNotifications(subscriptions, notif);
-        return response.sendStatus(200);
+        //return response.sendStatus(200);
+        return response.status(200).json(request.faceRecognition)
       } else {
-        return response.sendStatus(409);
+        //return response.sendStatus(409);
+        return response.status(409).json(request.faceRecognition)
       }
     }
 
-    response.sendStatus(403);
+    //response.sendStatus(403);
+    response.status(403).json(request.faceRecognition)
 })
 
 app.get('/', (request, response) => {
   response.sendFile(__dirname + '/views/index.html');
 });
 
+app.get('/settings', (request, response) => {
+  response.sendFile(__dirname + '/views/web_push_settings.html');
+});
+
 app.get('/face-recognition', (request, response) => {
   response.sendFile(__dirname + '/views/face_recognition.html');
 });
+
+app.use((request, response) => {
+  response.sendFile(__dirname + '/views/not_found.html');
+})
 
 const listener = app.listen(process.env.PORT, () => {
   console.log(`-------------------------------`);

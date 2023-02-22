@@ -1,4 +1,8 @@
 (() => {
+  // Others
+  const alertId = 'message-display'
+
+
   // The width and height of the captured photo. We will set the
   // width to the value defined here, but the height will be
   // calculated based on the aspect ratio of the input stream.
@@ -106,19 +110,34 @@
         method: "POST",
         body: formData
       })
-      .then(response => {
+      .then(async response => {
         console.log(response);
+        let data = await response.json()
         if (response && response.status == 403) {
-          alert('Persona no identificada, por favor intente de nuevo.')
+          //alert(`Persona no identificada. Mensaje del servidor: ${data.message}. Por favor intente de nuevo.`)
+          AlertSetText(alertId, `Persona no identificada. Mensaje del servidor: ${data.message}. Por favor intente de nuevo.`)
+          AlertSetState(alertId, 'error')
+          AlertShow(alertId)
+        } else if (response && response.status == 200) {
+          //alert(`Hola, ${data.person}.`)
+          AlertSetText(alertId, `Hola, ${data.person}.`)
+          AlertSetState(alertId, 'success')
+          AlertShow(alertId)
         }
       })
       .then(() => {
         console.log("La foto fue enviada correctamente");
       });
+      AlertSetText(alertId, 'Esperando respuesta.')
+      AlertSetState(alertId, 'info')
+      AlertShow(alertId)
     }
   }
 
   // Set up our event listener to run the startup process
   // once loading is complete.
   window.addEventListener("load", startup, false);
+
+  //Set up view alerts
+  AlertHide(alertId)
 })();
