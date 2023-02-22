@@ -1,0 +1,17 @@
+.message-display {
+  width: 90%;
+  padding: 20px;
+  margin: 20px;
+}
+.message-display-success {
+  background-color: #34eb58;
+}
+.message-display-error {
+  background-color: #eb4034;
+}
+.message-display-info {
+  background-color: #ebf099;
+}
+.content-centered {
+  text-align: center;
+}
